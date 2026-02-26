@@ -17,11 +17,27 @@ logger = logging.getLogger(__name__)
 
 # B站 cookies 文件路径
 BILIBILI_COOKIES_FILE = os.getenv("BILIBILI_COOKIES_FILE", "cookies.txt")
+# 代理设置
+BILIBILI_PROXY = os.getenv("BILIBILI_PROXY", "")  # e.g. "http://127.0.0.1:7890"
 
 
 class BilibiliDownloader(Downloader, ABC):
     def __init__(self):
         super().__init__()
+
+    def _get_cookies_path(self) -> Optional[str]:
+        """获取 cookies 文件路径"""
+        cookies_path = Path(BILIBILI_COOKIES_FILE)
+        if not cookies_path.is_absolute():
+            # 相对于 backend 目录
+            cookies_path = Path(__file__).parent.parent.parent / BILIBILI_COOKIES_FILE
+
+        if cookies_path.exists():
+            logger.info(f"使用 cookies 文件: {cookies_path}")
+            return str(cookies_path)
+        else:
+            logger.warning(f"B站 cookies 文件不存在: {cookies_path}，下载可能失败")
+            return None
 
     def download(
         self,
@@ -51,6 +67,16 @@ class BilibiliDownloader(Downloader, ABC):
             'noplaylist': True,
             'quiet': False,
         }
+
+        # 添加 cookies 支持
+        cookies_path = self._get_cookies_path()
+        if cookies_path:
+            ydl_opts['cookiefile'] = cookies_path
+
+        # 添加代理支持
+        if BILIBILI_PROXY:
+            ydl_opts['proxy'] = BILIBILI_PROXY
+            logger.info(f"使用代理: {BILIBILI_PROXY}")
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=True)
@@ -101,6 +127,16 @@ class BilibiliDownloader(Downloader, ABC):
             'quiet': False,
             'merge_output_format': 'mp4',  # 确保合并成 mp4
         }
+
+        # 添加 cookies 支持
+        cookies_path = self._get_cookies_path()
+        if cookies_path:
+            ydl_opts['cookiefile'] = cookies_path
+
+        # 添加代理支持
+        if BILIBILI_PROXY:
+            ydl_opts['proxy'] = BILIBILI_PROXY
+            logger.info(f"使用代理: {BILIBILI_PROXY}")
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=True)
@@ -164,6 +200,11 @@ class BilibiliDownloader(Downloader, ABC):
             logger.info(f"使用 cookies 文件: {cookies_path}")
         else:
             logger.warning(f"B站 cookies 文件不存在: {cookies_path}，字幕获取可能失败")
+
+        # 添加代理支持
+        if BILIBILI_PROXY:
+            ydl_opts['proxy'] = BILIBILI_PROXY
+            logger.info(f"使用代理: {BILIBILI_PROXY}")
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
